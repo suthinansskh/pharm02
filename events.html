@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จัดการกิจกรรม - บันทึกการประชุมกลุ่มงานเภสัชกรรม</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="events.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+        <div class="nav-container">
+            <div class="nav-brand">บันทึกการประชุมกลุ่มงานเภสัชกรรม</div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">หน้าหลัก</a>
+                <a href="events.html" class="nav-link active">จัดการกิจกรรม</a>
+                <a href="summary.html" class="nav-link">บันทึกการเข้าร่วม</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>จัดการกิจกรรม</h1>
+        
+        <!-- Event Creation Form -->
+        <div class="form-section">
+            <h2>สร้างกิจกรรมใหม่</h2>
+            <p class="form-description">📝 กรุณากรอกข้อมูลกิจกรรม วันที่จัดกิจกรรมจะใช้สำหรับแสดงในรายงานสรุป (วันเข้าร่วมจะบันทึกเป็น timestamp อัตโนมัติ)</p>
+            <form id="event-creation-form">
+                <div class="form-row">
+                    <input type="text" id="event-name" placeholder="ชื่อกิจกรรม" required>
+                    <input type="text" id="event-category" placeholder="ประเภท (เช่น อบรม, การแข่งขัน)" required>
+                </div>
+                <div class="form-row">
+                    <input type="number" id="event-points" placeholder="คะแนน" min="1" required>
+                    <div class="date-input-group">
+                        <label for="event-date">วันที่จัดกิจกรรม:</label>
+                        <input type="date" id="event-date" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <input type="text" id="event-organizer" placeholder="ผู้จัดกิจกรรม" required>
+                    <select id="event-status" required>
+                        <option value="">เลือกสถานะ</option>
+                        <option value="upcoming">กำลังจะมาถึง</option>
+                        <option value="ongoing">กำลังดำเนินการ</option>
+                        <option value="completed">เสร็จสิ้นแล้ว</option>
+                        <option value="cancelled">ยกเลิก</option>
+                    </select>
+                </div>
+                <textarea id="event-description" placeholder="รายละเอียดกิจกรรม (ไม่บังคับ)" rows="3"></textarea>
+                <button type="submit">สร้างกิจกรรม</button>
+            </form>
+        </div>
+
+        <hr>
+
+        <!-- Event Filters -->
+        <div class="filter-section">
+            <h2>ตัวกรองกิจกรรม</h2>
+            <div class="filter-controls">
+                <select id="status-filter">
+                    <option value="">สถานะทั้งหมด</option>
+                    <option value="upcoming">กำลังจะมาถึง</option>
+                    <option value="ongoing">กำลังดำเนินการ</option>
+                    <option value="completed">เสร็จสิ้นแล้ว</option>
+                    <option value="cancelled">ยกเลิก</option>
+                </select>
+                <select id="category-filter">
+                    <option value="">ประเภททั้งหมด</option>
+                </select>
+                <input type="text" id="search-filter" placeholder="ค้นหากิจกรรม...">
+                <button id="clear-filters">ล้างตัวกรอง</button>
+            </div>
+        </div>
+
+        <!-- Events Display -->
+        <div class="events-section">
+            <h2>กิจกรรมทั้งหมด</h2>
+            <div class="events-stats">
+                <div class="stat-card">
+                    <span class="stat-number" id="total-events">0</span>
+                    <span class="stat-label">กิจกรรมทั้งหมด</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="upcoming-events">0</span>
+                    <span class="stat-label">กำลังจะมาถึง</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="ongoing-events">0</span>
+                    <span class="stat-label">กำลังดำเนินการ</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number" id="completed-events">0</span>
+                    <span class="stat-label">เสร็จสิ้นแล้ว</span>
+                </div>
+            </div>
+            <div id="events-list" class="events-grid"></div>
+        </div>
+    </div>
+
+    <script src="events.js"></script>
+</body>
+</html>

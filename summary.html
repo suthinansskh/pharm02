@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บันทึกการเข้าร่วม - สรุปการประชุมกลุ่มงานเภสัชกรรม</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="summary.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav-bar">
+        <div class="nav-container">
+            <div class="nav-brand">บันทึกการประชุมกลุ่มงานเภสัชกรรม</div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">หน้าหลัก</a>
+                <a href="events.html" class="nav-link">จัดการกิจกรรม</a>
+                <a href="summary.html" class="nav-link active">บันทึกการเข้าร่วม</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>📊 บันทึกการเข้าร่วมประชุม</h1>
+        
+        <!-- Summary Statistics -->
+        <div class="stats-section">
+            <h2>📈 สถิติรวม</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-participants">0</div>
+                    <div class="stat-label">ผู้เข้าร่วมทั้งหมด</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="total-meetings">0</div>
+                    <div class="stat-label">จำนวนการประชุม</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="total-points">0</div>
+                    <div class="stat-label">คะแนนรวมทั้งหมด</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="avg-attendance">0%</div>
+                    <div class="stat-label">อัตราการเข้าร่วมเฉลี่ย</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-section">
+            <h3>🔍 ตัวกรอง</h3>
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="date-from">จากวันที่:</label>
+                    <input type="date" id="date-from">
+                </div>
+                <div class="filter-group">
+                    <label for="date-to">ถึงวันที่:</label>
+                    <input type="date" id="date-to">
+                </div>
+                <div class="filter-group">
+                    <label for="event-filter">กิจกรรม:</label>
+                    <select id="event-filter">
+                        <option value="">ทุกกิจกรรม</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="department-filter">หน่วยงาน:</label>
+                    <select id="department-filter">
+                        <option value="">ทุกหน่วยงาน</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button onclick="applyFilters()" class="filter-btn">กรองข้อมูล</button>
+                    <button onclick="clearFilters()" class="clear-btn">ล้างตัวกรอง</button>
+                    <button onclick="exportToCSV()" class="export-btn">📥 Export CSV</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Individual Summary Table -->
+        <div class="summary-section">
+            <h3>👥 สรุปรายบุคคล</h3>
+            
+            <!-- Search -->
+            <div class="search-section">
+                <input type="text" id="search-input" placeholder="🔍 ค้นหาชื่อ, ตำแหน่ง, หน่วยงาน..." class="search-input">
+            </div>
+
+            <!-- Summary Table -->
+            <div class="table-container">
+                <table id="summary-table" class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>ชื่อ-นามสกุล</th>
+                            <th>ตำแหน่ง</th>
+                            <th>หน่วยงาน</th>
+                            <th>จำนวนครั้ง</th>
+                            <th>คะแนนรวม</th>
+                            <th>เฉลี่ย/ครั้ง</th>
+                            <th>การเข้าร่วมล่าสุด</th>
+                            <th>รายละเอียด</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summary-tbody">
+                        <tr>
+                            <td colspan="9" class="loading">กำลังโหลดข้อมูล...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Detailed Records (Hidden by default) -->
+        <div id="detailed-records" class="detailed-section" style="display: none;">
+            <h3>📋 รายละเอียดการเข้าร่วม</h3>
+            <div class="close-details">
+                <button onclick="hideDetailedRecords()" class="close-btn">✕ ปิด</button>
+            </div>
+            <div id="detailed-content" class="detailed-content">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <h3>📊 แผนภูมิสถิติ</h3>
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h4>🏆 Top 10 ผู้เข้าร่วมมากที่สุด</h4>
+                    <canvas id="top-participants-chart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h4>📅 การเข้าร่วมตามเดือน</h4>
+                    <canvas id="monthly-attendance-chart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>กำลังโหลดข้อมูl...</p>
+        </div>
+    </div>
+
+    <script src="summary.js"></script>
+</body>
+</html>

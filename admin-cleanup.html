@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จัดการข้อมูลระบบ - Admin Only</title>
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        .warning {
+            background: #fee;
+            border: 2px solid #f99;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            color: #c33;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        
+        input[type="password"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        
+        .btn-warning:hover {
+            background: #f57c00;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-warning:disabled, .btn-danger:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .result.success {
+            background: #d4edda;
+            border: 2px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .result.error {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 จัดการข้อมูลระบบ</h1>
+        
+        <div class="warning">
+            <strong>⚠️ คำเตือน:</strong> การใช้งานหน้านี้จะส่งผลต่อข้อมูลในระบบ! 
+            ใช้เฉพาะสำหรับผู้ดูแลระบบเท่านั้น
+        </div>
+        
+        <!-- Remove Duplicates Section -->
+        <div style="margin-bottom: 2rem; padding: 1rem; border: 2px solid #ff9800; border-radius: 8px; background: #fff3e0;">
+            <h3>🔧 ลบข้อมูลซ้ำ</h3>
+            <p>ลบข้อมูลที่มีชื่อ + วันที่ + กิจกรรม เดียวกัน (เก็บรายการแรกไว้)</p>
+            
+            <form id="removeDuplicatesForm">
+                <div class="form-group">
+                    <label for="password1">รหัสผ่านผู้ดูแลระบบ:</label>
+                    <input type="password" id="password1" name="password1" required>
+                </div>
+                
+                <button type="submit" class="btn-warning">ลบข้อมูลซ้ำ</button>
+            </form>
+            
+            <div id="duplicateResult" class="result"></div>
+        </div>
+        
+        <!-- Clean Test Data Section -->
+        <div style="margin-bottom: 2rem; padding: 1rem; border: 2px solid #f44336; border-radius: 8px; background: #ffebee;">
+            <h3>🗑️ ลบข้อมูลทดสอบทั้งหมด</h3>
+            <p><strong>อันตราย:</strong> จะลบข้อมูลการเข้าร่วมประชุมทั้งหมดในระบบ!</p>
+            
+            <form id="cleanupForm">
+                <div class="form-group">
+                    <label for="password2">รหัสผ่านผู้ดูแลระบบ:</label>
+                    <input type="password" id="password2" name="password2" required>
+                </div>
+                
+                <button type="submit" class="btn-danger">ลบข้อมูลทดสอบทั้งหมด</button>
+            </form>
+            
+            <div id="cleanupResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyDbNuvZVetuZMpqf1XTgmHGb6RLON1LqfLb03ptaUqbx608Zv8MAzoOgYEk_KLwRQvjg/exec";
+        
+        // Remove Duplicates Form
+        document.getElementById('removeDuplicatesForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('password1').value;
+            const submitBtn = document.querySelector('.btn-warning');
+            const resultDiv = document.getElementById('duplicateResult');
+            
+            if (!password) {
+                showResult('กรุณาใส่รหัสผ่าน', 'error', resultDiv);
+                return;
+            }
+            
+            // Disable button during request
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'กำลังลบข้อมูลซ้ำ...';
+            
+            // Make JSONP request to remove duplicates
+            const callbackName = 'removeDuplicate_' + Date.now();
+            
+            window[callbackName] = function(response) {
+                console.log('Remove duplicates response:', response);
+                
+                if (response.success) {
+                    showResult(`✅ ${response.message} (ลบไปทั้งหมด ${response.removedCount || 0} รายการ)`, 'success', resultDiv);
+                    document.getElementById('password1').value = '';
+                } else {
+                    showResult(`❌ ${response.error || 'เกิดข้อผิดพลาดในการลบข้อมูลซ้ำ'}`, 'error', resultDiv);
+                }
+                
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'ลบข้อมูลซ้ำ';
+                
+                // Clean up callback
+                delete window[callbackName];
+            };
+            
+            // Create script tag for JSONP request
+            const script = document.createElement('script');
+            script.src = `${SCRIPT_URL}?action=removeDuplicates&password=${encodeURIComponent(password)}&callback=${callbackName}`;
+            script.onerror = function() {
+                showResult('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error', resultDiv);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'ลบข้อมูลซ้ำ';
+                delete window[callbackName];
+            };
+            
+            document.head.appendChild(script);
+            
+            // Remove script after 30 seconds
+            setTimeout(() => {
+                if (document.head.contains(script)) {
+                    document.head.removeChild(script);
+                }
+            }, 30000);
+        });
+        
+        // Clean Test Data Form
+        document.getElementById('cleanupForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('password2').value;
+            const submitBtn = document.querySelector('.btn-danger');
+            const resultDiv = document.getElementById('cleanupResult');
+            
+            if (!password) {
+                showResult('กรุณาใส่รหัสผ่าน', 'error', resultDiv);
+                return;
+            }
+            
+            // Disable button during request
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'กำลังลบข้อมูล...';
+            
+            // Make JSONP request to clean test data
+            const callbackName = 'cleanup_' + Date.now();
+            
+            window[callbackName] = function(response) {
+                console.log('Cleanup response:', response);
+                
+                if (response.success) {
+                    showResult(`✅ ${response.message} (ลบไปทั้งหมด ${response.deletedRows || 0} รายการ)`, 'success', resultDiv);
+                    document.getElementById('password2').value = '';
+                } else {
+                    showResult(`❌ ${response.error || 'เกิดข้อผิดพลาดในการลบข้อมูล'}`, 'error', resultDiv);
+                }
+                
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'ลบข้อมูลทดสอบทั้งหมด';
+                
+                // Clean up callback
+                delete window[callbackName];
+            };
+            
+            // Create script tag for JSONP request
+            const script = document.createElement('script');
+            script.src = `${SCRIPT_URL}?action=cleanTestData&password=${encodeURIComponent(password)}&callback=${callbackName}`;
+            script.onerror = function() {
+                showResult('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error', resultDiv);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'ลบข้อมูลทดสอบทั้งหมด';
+                delete window[callbackName];
+            };
+            
+            document.head.appendChild(script);
+            
+            // Remove script after 30 seconds
+            setTimeout(() => {
+                if (document.head.contains(script)) {
+                    document.head.removeChild(script);
+                }
+            }, 30000);
+        });
+        
+        function showResult(message, type, resultDiv) {
+            resultDiv.textContent = message;
+            resultDiv.className = `result ${type}`;
+            resultDiv.style.display = 'block';
+            
+            // Auto-hide after 5 seconds for success messages
+            if (type === 'success') {
+                setTimeout(() => {
+                    resultDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>
