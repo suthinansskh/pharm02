@@ -622,8 +622,9 @@ function updateEvent(eventData) {
     if (categoryIndex !== -1 && eventData.category) {
       sheet.getRange(rowToUpdate, categoryIndex + 1).setValue(eventData.category);
     }
-    if (pointIndex !== -1 && eventData.point !== undefined) {
-      sheet.getRange(rowToUpdate, pointIndex + 1).setValue(parseFloat(eventData.point) || 0);
+    if (pointIndex !== -1 && (eventData.point !== undefined || eventData.points !== undefined)) {
+      var pointValue = eventData.point !== undefined ? eventData.point : eventData.points;
+      sheet.getRange(rowToUpdate, pointIndex + 1).setValue(parseFloat(pointValue) || 0);
     }
     if (dateIndex !== -1 && eventData.date) {
       sheet.getRange(rowToUpdate, dateIndex + 1).setValue(eventData.date);

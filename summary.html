@@ -85,9 +85,20 @@
         <div class="summary-section">
             <h3>👥 สรุปรายบุคคล</h3>
             
-            <!-- Search -->
+            <!-- Search and Display Options -->
             <div class="search-section">
-                <input type="text" id="search-input" placeholder="🔍 ค้นหาชื่อ, ตำแหน่ง, หน่วยงาน..." class="search-input">
+                <div class="search-controls">
+                    <input type="text" id="search-input" placeholder="🔍 ค้นหาชื่อ, ตำแหน่ง, หน่วยงาน..." class="search-input">
+                    <div class="display-options">
+                        <label for="records-per-person">แสดงรายการต่อคน:</label>
+                        <select id="records-per-person" onchange="updateRecordsLimit()">
+                            <option value="25">25 รายการ</option>
+                            <option value="50">50 รายการ</option>
+                            <option value="100">100 รายการ</option>
+                            <option value="all">ทั้งหมด</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <!-- Summary Table -->
@@ -138,6 +149,31 @@
                     <h4>📅 การเข้าร่วมตามเดือน</h4>
                     <canvas id="monthly-attendance-chart" width="400" height="200"></canvas>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Participant Detail Modal -->
+    <div id="participant-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>รายละเอียดการเข้าร่วม: <span id="modal-participant-name"></span></h3>
+                <span class="close" onclick="closeParticipantModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <table class="modal-events-table">
+                    <thead>
+                        <tr>
+                            <th>กิจกรรม</th>
+                            <th>วันที่</th>
+                            <th>คะแนน</th>
+                            <th>บันทึกเมื่อ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-events-body">
+                        <!-- Events will be populated by JavaScript -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

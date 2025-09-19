@@ -441,12 +441,46 @@ function loadRecords() {
                 return;
             }
             
-            data.forEach((record, index) => {
+            // Sort records by timestamp (newest first) and limit to 25 most recent
+            const sortedData = data
+                .sort((a, b) => {
+                    const timestampA = new Date(a.Timestamp || a.timestamp || 0);
+                    const timestampB = new Date(b.Timestamp || b.timestamp || 0);
+                    return timestampB - timestampA; // Newest first
+                })
+                .slice(0, 25); // Limit to 25 records
+            
+            // Add header to show that we're displaying latest 25 records
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'records-header';
+            headerDiv.innerHTML = `
+                <p style="text-align: center; color: #2E7D32; font-weight: 600; margin-bottom: 20px; padding: 10px; background: #F1F8E9; border-radius: 8px; border-left: 4px solid #4CAF50;">
+                    📋 แสดงการเข้าร่วม ${sortedData.length} รายการล่าสุด (จากทั้งหมด ${data.length} รายการ)
+                </p>
+            `;
+            recordsDiv.appendChild(headerDiv);
+            
+            // Create list container
+            const listContainer = document.createElement('div');
+            listContainer.className = 'records-list';
+            
+            // Create table-like list
+            const listHeader = document.createElement('div');
+            listHeader.className = 'records-list-header';
+            listHeader.innerHTML = `
+                <div class="list-col list-col-no">ลำดับ</div>
+                <div class="list-col list-col-name">ชื่อ-นามสกุล</div>
+                <div class="list-col list-col-position">ตำแหน่ง</div>
+                <div class="list-col list-col-event">กิจกรรม</div>
+                <div class="list-col list-col-points">คะแนน</div>
+                <div class="list-col list-col-date">วันที่เข้าร่วม</div>
+                <div class="list-col list-col-timestamp">บันทึกเมื่อ</div>
+            `;
+            listContainer.appendChild(listHeader);
+            
+            sortedData.forEach((record, index) => {
                 console.log(`Record ${index}:`, record);
                 console.log('Record keys:', Object.keys(record));
-                
-                const recordDiv = document.createElement('div');
-                recordDiv.className = 'record-item';
                 
                 // Use exact column names from Google Sheets: Timestamp, Name, Position, Department, Date, Event, Points
                 const name = record.Name || record.name || 'ไม่ระบุ';
@@ -476,32 +510,35 @@ function loadRecords() {
                     if (!dateValue) return 'ไม่ระบุ';
                     try {
                         const dateObj = new Date(dateValue);
-                        return dateObj.toLocaleString('th-TH');
+                        return dateObj.toLocaleString('th-TH', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
                     } catch (e) {
                         return dateValue.toString();
                     }
                 };
                 
-                recordDiv.innerHTML = `
-                    <div>
-                        <strong>ชื่อ:</strong> ${name} (${position})
-                        <span class="points">${points} คะแนน</span>
-                    </div>
-                    <div style="margin-top: 8px;">
-                        <strong>แผนก:</strong> ${department}
-                    </div>
-                    <div style="margin-top: 8px;">
-                        <strong>กิจกรรม:</strong> ${event}
-                    </div>
-                    <div style="margin-top: 8px;">
-                        <strong>วันที่เข้าร่วม:</strong> ${formatDate(date)}
-                    </div>
-                    <div style="margin-top: 5px; font-size: 0.9em; color: #666;">
-                        <strong>บันทึกเมื่อ:</strong> ${formatDateTime(timestamp)}
-                    </div>
+                const listItem = document.createElement('div');
+                listItem.className = 'records-list-item';
+                
+                listItem.innerHTML = `
+                    <div class="list-col list-col-no">${index + 1}</div>
+                    <div class="list-col list-col-name" title="${name} (${department})">${name}</div>
+                    <div class="list-col list-col-position" title="${position}">${position}</div>
+                    <div class="list-col list-col-event" title="${event}">${event}</div>
+                    <div class="list-col list-col-points">${points}</div>
+                    <div class="list-col list-col-date">${formatDate(date)}</div>
+                    <div class="list-col list-col-timestamp" title="${formatDateTime(timestamp)}">${formatDateTime(timestamp)}</div>
                 `;
-                recordsDiv.appendChild(recordDiv);
+                
+                listContainer.appendChild(listItem);
             });
+            
+            recordsDiv.appendChild(listContainer);
         })
         .catch(error => {
             console.error('Error loading records:', error);

@@ -227,7 +227,7 @@ async function loadAllData() {
 
         // Initialize data arrays and process
         initializeData();
-        processData();
+        processDataWithLimit();
         populateFilters();
         
         hideLoading();
@@ -303,7 +303,7 @@ function processData() {
         .sort((a, b) => b.totalPoints - a.totalPoints);
     
     displaySummaryStatistics(filteredData);
-    displayParticipantTable(filteredData);
+    displayParticipantTableOptimized(filteredData);
     displayDetailedRecords();
 }
 
@@ -538,7 +538,7 @@ function clearFilters() {
     if (departmentFilter) departmentFilter.value = '';
     if (searchInput) searchInput.value = '';
     
-    processData(); // Reload original data
+    processDataWithLimit(); // Reload original data
 }
 
 // Populate filter options
@@ -572,14 +572,38 @@ function populateFilters() {
 // Show participant detail modal
 function showParticipantDetail(participantName) {
     const participant = filteredData.find(p => p.name === participantName);
-    if (!participant) return;
+    if (!participant) {
+        console.warn('Participant not found:', participantName);
+        return;
+    }
     
     const modal = document.getElementById('participant-modal');
     const nameSpan = document.getElementById('modal-participant-name');
     const tbody = document.getElementById('modal-events-body');
     
+    // Check if all required elements exist
+    if (!modal) {
+        console.error('Modal element not found: participant-modal');
+        return;
+    }
+    if (!nameSpan) {
+        console.error('Name span element not found: modal-participant-name');
+        return;
+    }
+    if (!tbody) {
+        console.error('Table body element not found: modal-events-body');
+        return;
+    }
+    
     nameSpan.textContent = participantName;
     tbody.innerHTML = '';
+    
+    // Check if participant has events
+    if (!participant.events || participant.events.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666; padding: 20px;">ไม่มีข้อมูลการเข้าร่วมกิจกรรม</td></tr>';
+        modal.style.display = 'block';
+        return;
+    }
     
     // Sort events by date (newest first)
     const sortedEvents = participant.events.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -587,9 +611,9 @@ function showParticipantDetail(participantName) {
     sortedEvents.forEach(event => {
         const row = tbody.insertRow();
         row.innerHTML = `
-            <td>${event.eventName}</td>
+            <td>${event.eventName || 'ไม่ระบุ'}</td>
             <td>${formatDate(event.date)}</td>
-            <td class="points">${event.points}</td>
+            <td class="points">${event.points || 0}</td>
             <td>${formatDateTime(event.timestamp)}</td>
         `;
     });
@@ -688,6 +712,156 @@ function formatDateTime(dateString) {
     if (!dateString) return '-';
     const date = new Date(dateString);
     return date.toLocaleString('th-TH');
+}
+
+// Global variable for records per person limit
+let recordsPerPersonLimit = 25;
+
+// Update records limit function
+function updateRecordsLimit() {
+    const selectElement = document.getElementById('records-per-person');
+    recordsPerPersonLimit = selectElement.value === 'all' ? null : parseInt(selectElement.value);
+    
+    // Reprocess data with new limit
+    processDataWithLimit();
+}
+
+// Process data with record limit per person for better performance
+function processDataWithLimit() {
+    debugLog('Processing data with limit:', recordsPerPersonLimit);
+    
+    // Safety check
+    if (!Array.isArray(recordsData)) {
+        console.error('recordsData is not an array in processDataWithLimit:', recordsData);
+        recordsData = [];
+    }
+    if (!Array.isArray(eventsData)) {
+        console.error('eventsData is not an array in processDataWithLimit:', eventsData);
+        eventsData = [];
+    }
+    
+    const participantSummary = {};
+    
+    // Sort records by timestamp (newest first) for each person
+    const sortedRecords = [...recordsData].sort((a, b) => {
+        const timestampA = new Date(a.Timestamp || 0);
+        const timestampB = new Date(b.Timestamp || 0);
+        return timestampB - timestampA;
+    });
+    
+    sortedRecords.forEach(record => {
+        if (!record.Name || !record.Event) return;
+        
+        const key = record.Name;
+        if (!participantSummary[key]) {
+            participantSummary[key] = {
+                name: record.Name,
+                position: record.Position || '',
+                department: record.Department || '',
+                attendanceCount: 0,
+                totalPoints: 0,
+                events: [],
+                lastAttendance: null
+            };
+        }
+        
+        // Apply limit per person
+        if (recordsPerPersonLimit && participantSummary[key].events.length >= recordsPerPersonLimit) {
+            return; // Skip this record if limit reached
+        }
+        
+        // Find event details
+        const eventDetails = eventsData.find(e => e.Name === record.Event);
+        const points = eventDetails ? (parseFloat(eventDetails.Point) || 0) : 0;
+        
+        // Use event date from events sheet if available, otherwise use record date
+        const eventDate = eventDetails ? eventDetails.Date : record.Date;
+        
+        participantSummary[key].attendanceCount++;
+        participantSummary[key].totalPoints += points;
+        
+        const eventEntry = {
+            eventName: record.Event,
+            date: eventDate,
+            points: points,
+            timestamp: record.Timestamp
+        };
+        
+        participantSummary[key].events.push(eventEntry);
+        
+        // Update last attendance
+        if (!participantSummary[key].lastAttendance || 
+            new Date(eventDate) > new Date(participantSummary[key].lastAttendance)) {
+            participantSummary[key].lastAttendance = eventDate;
+        }
+    });
+    
+    // Convert to array and sort by total points (descending)
+    filteredData = Object.values(participantSummary)
+        .sort((a, b) => b.totalPoints - a.totalPoints);
+    
+    displaySummaryStatistics(filteredData);
+    displayParticipantTableOptimized(filteredData);
+    displayDetailedRecords();
+}
+
+// Optimized table display with virtual scrolling concept
+function displayParticipantTableOptimized(data) {
+    const tbody = document.getElementById('summary-tbody');
+    if (!tbody) {
+        console.error('summary-tbody element not found');
+        return;
+    }
+    
+    // Clear existing content
+    tbody.innerHTML = '';
+    
+    // Create document fragment for batch DOM operations
+    const fragment = document.createDocumentFragment();
+    
+    data.forEach((participant, index) => {
+        const row = document.createElement('tr');
+        
+        // Calculate average points per attendance
+        const avgPoints = participant.attendanceCount > 0 ? 
+            (participant.totalPoints / participant.attendanceCount).toFixed(1) : '0.0';
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${participant.name}</td>
+            <td>${participant.position}</td>
+            <td>${participant.department}</td>
+            <td>${participant.attendanceCount}</td>
+            <td class="points">${participant.totalPoints}</td>
+            <td>${avgPoints}</td>
+            <td>${formatDate(participant.lastAttendance)}</td>
+            <td><button class="btn-detail" onclick="showParticipantDetail('${participant.name}')">รายละเอียด</button></td>
+        `;
+        
+        fragment.appendChild(row);
+    });
+    
+    // Batch append to DOM
+    tbody.appendChild(fragment);
+    
+    // Update status message
+    const statusMessage = recordsPerPersonLimit ? 
+        `แสดงข้อมูล ${data.length} คน (จำกัด ${recordsPerPersonLimit} รายการต่อคน)` :
+        `แสดงข้อมูล ${data.length} คน (ทั้งหมด)`;
+    
+    // Add or update status message
+    let statusDiv = document.getElementById('table-status');
+    if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'table-status';
+        statusDiv.className = 'table-status';
+        document.querySelector('.table-container').insertBefore(statusDiv, document.querySelector('.summary-table'));
+    }
+    statusDiv.innerHTML = `
+        <p style="text-align: center; color: #2E7D32; font-weight: 500; margin: 10px 0; padding: 8px; background: #F1F8E9; border-radius: 6px;">
+            📊 ${statusMessage}
+        </p>
+    `;
 }
 
 // Event Listeners

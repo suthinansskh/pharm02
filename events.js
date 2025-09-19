@@ -86,43 +86,80 @@ function setupEventListeners() {
     clearFiltersBtn.addEventListener('click', clearFilters);
 }
 
-// Handle event form submission
+// Handle event form submission (both create and update)
 function handleEventSubmission(e) {
     e.preventDefault();
     
     const submitButton = eventForm.querySelector('button[type="submit"]');
     const originalText = submitButton.textContent;
     submitButton.disabled = true;
-    submitButton.textContent = 'Creating...';
     
     const eventData = {
-        type: 'event',
         name: document.getElementById('event-name').value,
         category: document.getElementById('event-category').value,
         points: parseInt(document.getElementById('event-points').value),
         date: document.getElementById('event-date').value,
         organizer: document.getElementById('event-organizer').value,
         status: document.getElementById('event-status').value,
-        description: document.getElementById('event-description').value,
-        createdAt: new Date().toISOString()
+        description: document.getElementById('event-description').value
     };
     
-    // For now, we'll store events locally since the backend is focused on records
-    // In a real implementation, you'd want to extend the backend to handle events
-    createEvent(eventData)
-        .then(() => {
-            showMessage('สร้างกิจกรรมเรียบร้อยแล้ว!', 'success');
-            eventForm.reset();
-            loadEvents();
-        })
-        .catch(error => {
-            console.error('Error creating event:', error);
-            showMessage('เกิดข้อผิดพลาดในการสร้างกิจกรรม กรุณาลองใหม่อีกครั้ง', 'error');
-        })
-        .finally(() => {
-            submitButton.disabled = false;
-            submitButton.textContent = originalText;
-        });
+    // Check if we're in edit mode
+    if (eventForm.dataset.editingId) {
+        // Update existing event
+        submitButton.textContent = 'กำลังอัปเดต...';
+        const eventId = eventForm.dataset.editingId;
+        
+        console.log('Updating event with ID:', eventId, 'Data:', eventData);
+        updateEvent(eventId, eventData)
+            .then((response) => {
+                console.log('Update successful:', response);
+                showMessage('อัปเดตกิจกรรมเรียบร้อยแล้ว!', 'success');
+                eventForm.reset();
+                delete eventForm.dataset.editingId;
+                submitButton.textContent = 'สร้างกิจกรรม';
+                
+                // Remove cancel button
+                const cancelButton = document.getElementById('cancel-edit-btn');
+                if (cancelButton) {
+                    cancelButton.remove();
+                }
+                
+                loadEvents();
+            })
+            .catch(error => {
+                console.error('Error updating event:', error);
+                showMessage('เกิดข้อผิดพลาดในการอัปเดตกิจกรรม กรุณาลองใหม่อีกครั้ง', 'error');
+            })
+            .finally(() => {
+                submitButton.disabled = false;
+                if (!eventForm.dataset.editingId) {
+                    submitButton.textContent = 'สร้างกิจกรรม';
+                } else {
+                    submitButton.textContent = 'อัปเดตกิจกรรม';
+                }
+            });
+    } else {
+        // Create new event
+        submitButton.textContent = 'กำลังสร้าง...';
+        eventData.type = 'event';
+        eventData.createdAt = new Date().toISOString();
+        
+        createEvent(eventData)
+            .then(() => {
+                showMessage('สร้างกิจกรรมเรียบร้อยแล้ว!', 'success');
+                eventForm.reset();
+                loadEvents();
+            })
+            .catch(error => {
+                console.error('Error creating event:', error);
+                showMessage('เกิดข้อผิดพลาดในการสร้างกิจกรรม กรุณาลองใหม่อีกครั้ง', 'error');
+            })
+            .finally(() => {
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+            });
+    }
 }
 
 // Create event using JSONP to Google Apps Script
@@ -467,6 +504,48 @@ function editEvent(eventId) {
     document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth' });
     
     showMessage('โหลดข้อมูลกิจกรรมสำหรับแก้ไขแล้ว กรุณาแก้ไขข้อมูลและคลิก "อัปเดตกิจกรรม"', 'info');
+    
+    // Add cancel button if not exists
+    addCancelEditButton();
+}
+
+// Add cancel edit button
+function addCancelEditButton() {
+    // Check if cancel button already exists
+    if (document.getElementById('cancel-edit-btn')) return;
+    
+    const submitButton = eventForm.querySelector('button[type="submit"]');
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.id = 'cancel-edit-btn';
+    cancelButton.className = 'cancel-btn';
+    cancelButton.textContent = 'ยกเลิกการแก้ไข';
+    cancelButton.style.marginLeft = '10px';
+    cancelButton.style.background = '#666';
+    cancelButton.style.color = 'white';
+    cancelButton.style.border = 'none';
+    cancelButton.style.padding = '10px 20px';
+    cancelButton.style.borderRadius = '5px';
+    cancelButton.style.cursor = 'pointer';
+    
+    cancelButton.addEventListener('click', cancelEdit);
+    submitButton.parentNode.insertBefore(cancelButton, submitButton.nextSibling);
+}
+
+// Cancel edit mode
+function cancelEdit() {
+    eventForm.reset();
+    delete eventForm.dataset.editingId;
+    const submitButton = eventForm.querySelector('button[type="submit"]');
+    submitButton.textContent = 'สร้างกิจกรรม';
+    
+    // Remove cancel button
+    const cancelButton = document.getElementById('cancel-edit-btn');
+    if (cancelButton) {
+        cancelButton.remove();
+    }
+    
+    showMessage('ยกเลิกการแก้ไขแล้ว', 'info');
 }
 
 // Delete event
@@ -494,7 +573,8 @@ function updateEvent(eventId, eventData) {
             id: eventId,
             name: eventData.name,
             category: eventData.category,
-            point: eventData.points,
+            point: eventData.points, // Backend expects 'point' not 'points'
+            points: eventData.points, // Send both to be safe
             date: eventData.date,
             organizer: eventData.organizer,
             status: eventData.status,
@@ -569,46 +649,7 @@ function showMessage(message, type = 'info') {
     }, 3000);
 }
 
-// Handle form editing vs creating
-eventForm.addEventListener('submit', function(e) {
-    if (eventForm.dataset.editingId) {
-        e.preventDefault();
-        
-        const eventId = eventForm.dataset.editingId;
-        const submitButton = eventForm.querySelector('button[type="submit"]');
-        const originalText = submitButton.textContent;
-        submitButton.disabled = true;
-        submitButton.textContent = 'กำลังอัปเดต...';
-        
-        const eventData = {
-            name: document.getElementById('event-name').value,
-            category: document.getElementById('event-category').value,
-            points: parseInt(document.getElementById('event-points').value),
-            date: document.getElementById('event-date').value,
-            organizer: document.getElementById('event-organizer').value,
-            status: document.getElementById('event-status').value,
-            description: document.getElementById('event-description').value,
-            updatedAt: new Date().toISOString()
-        };
-        
-        updateEvent(eventId, eventData)
-            .then(() => {
-                showMessage('อัปเดตกิจกรรมเรียบร้อยแล้ว!', 'success');
-                eventForm.reset();
-                delete eventForm.dataset.editingId;
-                submitButton.textContent = 'สร้างกิจกรรม';
-                loadEvents();
-            })
-            .catch(error => {
-                console.error('Error updating event:', error);
-                showMessage('เกิดข้อผิดพลาดในการอัปเดตกิจกรรม กรุณาลองใหม่อีกครั้ง', 'error');
-            })
-            .finally(() => {
-                submitButton.disabled = false;
-                submitButton.textContent = originalText;
-            });
-    }
-});
+// Form editing vs creating is now handled in the main handleEventSubmission function
 
 // Sample data for demonstration (can be removed in production)
 function addSampleEvents() {
