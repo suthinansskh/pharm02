@@ -23,45 +23,148 @@
     </nav>
 
     <div class="container">
-        <h1>บันทึกการประชุมกลุ่มงานเภสัชกรรม</h1>
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <div class="hero-content">
+                <div class="hero-icon">📊</div>
+                <h1>บันทึกการประชุมกลุ่มงานเภสัชกรรม</h1>
+                <p class="hero-subtitle">ระบบบันทึกการเข้าร่วมประชุมและกิจกรรม</p>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-text">ผู้เข้าร่วม</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-text">กิจกรรม</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-text">คะแนน</div>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <div class="form-section">
-            <div class="form-description">
-                📝 บันทึกการเข้าร่วมประชุม: กรอก PS Code → เลือกกิจกรรม → บันทึก (วันที่จัดจะแสดงอัตโนมัติ)
-                <br><small style="color: #666; margin-top: 5px; display: block;">
-                    ⚠️ ระบบจะป้องกันการบันทึกซ้ำ (ชื่อ + วันที่ + กิจกรรม เดียวกัน)
-                </small>
+            <div class="form-card">
+                <div class="form-header">
+                    <h2>📝 บันทึกการเข้าร่วมประชุม</h2>
+                    <div class="form-description">
+                        <div class="steps-guide">
+                            <div class="step">
+                                <span class="step-number">1</span>
+                                <span class="step-text">กรอก PS Code</span>
+                            </div>
+                            <div class="step-arrow">→</div>
+                            <div class="step">
+                                <span class="step-number">2</span>
+                                <span class="step-text">เลือกกิจกรรม</span>
+                            </div>
+                            <div class="step-arrow">→</div>
+                            <div class="step">
+                                <span class="step-number">3</span>
+                                <span class="step-text">บันทึก</span>
+                            </div>
+                        </div>
+                        <div class="warning-note">
+                            <span class="warning-icon">⚠️</span>
+                            <span>ระบบจะป้องกันการบันทึกซ้ำ (ชื่อ + วันที่ + กิจกรรม เดียวกัน)</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="event-form">
+                    <!-- Personal Information Section -->
+                    <div class="form-section-group">
+                        <h3 class="section-title">
+                            <span class="section-icon">👤</span>
+                            ข้อมูลส่วนบุคคล
+                        </h3>
+                        <div class="input-group">
+                            <div class="input-with-icon">
+                                <span class="input-icon">🔑</span>
+                                <input type="text" id="pscode" placeholder="กรอก PS Code" required>
+                            </div>
+                        </div>
+                        
+                        <div class="readonly-info">
+                            <div class="input-with-icon">
+                                <span class="input-icon">👨‍⚕️</span>
+                                <input type="text" id="name" placeholder="ชื่อ-นามสกุล" readonly>
+                            </div>
+                            <div class="input-with-icon">
+                                <span class="input-icon">💼</span>
+                                <input type="text" id="position" placeholder="ตำแหน่ง" readonly>
+                            </div>
+                            <div class="input-with-icon">
+                                <span class="input-icon">🏢</span>
+                                <input type="text" id="department" placeholder="แผนก/หน่วยงาน" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Event Information Section -->
+                    <div class="form-section-group">
+                        <h3 class="section-title">
+                            <span class="section-icon">📅</span>
+                            ข้อมูลกิจกรรม
+                        </h3>
+                        <div class="form-group">
+                            <div class="input-with-icon">
+                                <span class="input-icon">🎯</span>
+                                <select id="event-select" required>
+                                    <option value="">เลือกกิจกรรม</option>
+                                </select>
+                            </div>
+                            <small class="form-note">หากไม่มีกิจกรรมที่ต้องการ กรุณา<a href="events.html" target="_blank">สร้างกิจกรรมใหม่</a></small>
+                        </div>
+                        
+                        <div class="readonly-info">
+                            <div class="input-with-icon">
+                                <span class="input-icon">🏆</span>
+                                <input type="number" id="point" placeholder="คะแนน" readonly>
+                            </div>
+                            
+                            <div class="date-input-group">
+                                <label for="dateevent">
+                                    <span class="input-icon">📅</span>
+                                    วันที่จัดกิจกรรม:
+                                </label>
+                                <input type="date" id="dateevent" required readonly>
+                                <small class="date-note">วันที่นี้จะถูกดึงมาจากข้อมูลกิจกรรมที่เลือก</small>
+                            </div>
+                            
+                            <div class="input-with-icon">
+                                <span class="input-icon">👨‍💼</span>
+                                <input type="text" id="eventby" placeholder="ผู้จัดกิจกรรม" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn">
+                        <span class="btn-icon">💾</span>
+                        บันทึกข้อมูล
+                    </button>
+                </form>
             </div>
-            <form id="event-form">
-                <input type="text" id="pscode" placeholder="กรอก PS Code" required>
-                
-                <input type="text" id="name" placeholder="ชื่อ-นามสกุล" readonly>
-                <input type="text" id="position" placeholder="ตำแหน่ง" readonly>
-                <input type="text" id="department" placeholder="แผนก/หน่วยงาน" readonly>
-                
-                <div class="form-group">
-                    <select id="event-select" required>
-                        <option value="">เลือกกิจกรรม</option>
-                    </select>
-                    <small class="form-note">หากไม่มีกิจกรรมที่ต้องการ กรุณา<a href="events.html" target="_blank">สร้างกิจกรรมใหม่</a></small>
-                </div>
-                
-                <input type="number" id="point" placeholder="คะแนน" readonly>
-                
-                <div class="date-input-group">
-                    <label for="dateevent">วันที่จัดกิจกรรม:</label>
-                    <input type="date" id="dateevent" required readonly>
-                    <small class="date-note">วันที่นี้จะถูกดึงมาจากข้อมูลกิจกรรมที่เลือก</small>
-                </div>
-                
-                <input type="text" id="eventby" placeholder="ผู้จัดกิจกรรม" readonly>
-                <button type="submit">บันทึกข้อมูล</button>
-            </form>
         </div>
         
         <div class="records-section">
-            <h2>บันทึกการเข้าร่วม (25 รายการล่าสุด)</h2>
-            <div id="records"></div>
+            <div class="records-card">
+                <div class="records-header">
+                    <h2>
+                        <span class="section-icon">📋</span>
+                        บันทึกการเข้าร่วม
+                    </h2>
+                    <div class="records-count">
+                        <span class="count-badge">25 รายการล่าสุด</span>
+                    </div>
+                </div>
+                <div class="records-container">
+                    <div id="records"></div>
+                </div>
+            </div>
         </div>
     </div>
     <script src="script.js"></script>
