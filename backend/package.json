@@ -1,0 +1,16 @@
+{
+  "name": "pharm02-backend",
+  "private": true,
+  "version": "2.0.0",
+  "scripts": {
+    "login": "clasp login",
+    "create": "clasp create --type standalone --title \"pharm02-api\" --rootDir .",
+    "push": "clasp push",
+    "deploy": "clasp push && clasp deploy --description \"api\"",
+    "open": "clasp open-script",
+    "logs": "clasp logs"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.4.1"
+  }
+}
