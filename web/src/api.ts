@@ -1,4 +1,4 @@
-import type { AdminUser, AdminUserInput, EventInput, EventItem, RecordsPage, UserInfo, VolunteersPage } from './types';
+import type { AdminUser, AdminUserInput, EventInput, EventItem, RecordsPage, UserInfo, VolunteerActivity, VolunteerActivityInput, VolunteersPage } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL as string | undefined;
 const TIMEOUT_MS = 20000;
@@ -55,11 +55,14 @@ export const api = {
   categories: () => get<string[]>('categories'),
   records: (limit?: number) => get<RecordsPage>('records', limit ? { limit: String(limit) } : {}),
   volunteers: () => get<VolunteersPage>('volunteers'),
+  volunteerActivities: () => get<VolunteerActivity[]>('volunteerActivities'),
   lookup: (psCode: string) => get<UserInfo>('lookup', { psCode }),
   addRecord: (psCode: string, eventId: string) =>
     post<{ name: string; event: string; points: number }>('addRecord', { psCode, eventId }),
-  addVolunteer: (v: { psCode: string; date: string; activity: string; detail: string }) =>
-    post<{ id: string; name: string; round: string }>('addVolunteer', v),
+  addVolunteer: (v: { psCode: string; activityId: string; detail: string }) =>
+    post<{ id: string; name: string; activity: string; round: string }>('addVolunteer', v),
+  saveVolunteerActivity: (token: string, a: VolunteerActivityInput) => post<{ id: string }>('saveVolunteerActivity', { token, ...a }),
+  deleteVolunteerActivity: (token: string, id: string) => post<{ id: string }>('deleteVolunteerActivity', { token, id }),
   deleteVolunteer: (token: string, id: string) => post<{ id: string }>('deleteVolunteer', { token, id }),
   listUsers: (token: string) => post<AdminUser[]>('listUsers', { token }),
   saveUser: (token: string, user: AdminUserInput) => post<{ psCode: string }>('saveUser', { token, ...user }),

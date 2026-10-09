@@ -7,7 +7,6 @@ import { useToast } from '../components/Toast';
 import { Card, ErrorBox, Loading } from '../components/State';
 import { evalRound, formatDate, roundOptions, todayString } from '../format';
 import type { EventInput, EventItem } from '../types';
-import { LoginForm } from './AdminPage';
 
 const STATUS_LABEL: Record<string, string> = {
   active: 'เปิดใช้งาน',
@@ -136,7 +135,7 @@ function EventForm({ editing, onDone }: { editing: EventItem | null; onDone: () 
 }
 
 export default function EventsPage() {
-  const { token, setToken, handleError } = useAdmin();
+  const { token, handleError } = useAdmin();
   const toast = useToast();
   const qc = useQueryClient();
   const events = useEvents();
@@ -191,29 +190,20 @@ export default function EventsPage() {
   return (
     <>
       <Card
-        title="จัดการกิจกรรม"
+        title="กิจกรรมประชุม"
         actions={
-          token ? (
-            <div className="actions">
-              {!formOpen && (
-                <button className="btn btn-primary" onClick={() => setCreating(true)}>
-                  + สร้างกิจกรรม
-                </button>
-              )}
-              <button className="btn" onClick={() => setToken(null)}>
-                ออกจากระบบ
-              </button>
-            </div>
-          ) : undefined
+          !formOpen && (
+            <button className="btn btn-primary" onClick={() => setCreating(true)}>
+              + สร้างกิจกรรม
+            </button>
+          )
         }
       >
-        {!token && (
-          <details className="login-box">
-            <summary>เข้าสู่ระบบผู้ดูแลเพื่อสร้าง/แก้ไขกิจกรรม</summary>
-            <LoginForm />
-          </details>
+        {formOpen ? (
+          <EventForm key={editing?.id ?? 'new'} editing={editing} onDone={closeForm} />
+        ) : (
+          <p className="hint section-hint">สร้างกิจกรรมประชุม/อบรมที่บุคลากรเลือกตอนบันทึกการเข้าร่วม พร้อมกำหนดนาที วันที่ และรอบประเมิน</p>
         )}
-        {token && formOpen && <EventForm key={editing?.id ?? 'new'} editing={editing} onDone={closeForm} />}
       </Card>
 
       <Card title="รายการกิจกรรม" actions={events.data && <span className="badge">{shown.length} / {events.data.length}</span>}>

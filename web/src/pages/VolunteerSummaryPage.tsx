@@ -1,12 +1,11 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError } from '../api';
+import { api } from '../api';
 import { useAdmin } from '../admin';
 import { useVolunteers } from '../queries';
 import { useToast } from '../components/Toast';
-import PsCodeField, { usePsCode } from '../components/PsCodeField';
 import { Card, ErrorBox, Loading } from '../components/State';
-import { currentRound, downloadCsv, evalRound, evalRounds, formatDate, formatNumber, todayString } from '../format';
+import { currentRound, downloadCsv, evalRound, evalRounds, formatDate, formatNumber } from '../format';
 
 const PAGE = 50;
 
@@ -18,16 +17,11 @@ interface Person {
   last: string;
 }
 
-export default function VolunteerPage() {
+export default function VolunteerSummaryPage() {
   const toast = useToast();
   const qc = useQueryClient();
   const { token, handleError } = useAdmin();
   const volunteers = useVolunteers();
-  const ps = usePsCode();
-  const [date, setDate] = useState(todayString);
-  const [activity, setActivity] = useState('');
-  const [detail, setDetail] = useState('');
-
   const [round, setRound] = useState(currentRound);
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(PAGE);
@@ -35,7 +29,6 @@ export default function VolunteerPage() {
   const items = volunteers.data?.items;
 
   const rounds = useMemo(() => evalRounds((items ?? []).map((v) => v.round || v.date)), [items]);
-  const activityNames = useMemo(() => [...new Set((items ?? []).map((v) => v.activity))].slice(0, 30), [items]);
 
   const inRound = useMemo(
     () => (items ?? []).filter((v) => !round || (v.round || evalRound(v.date)) === round),
@@ -66,21 +59,6 @@ export default function VolunteerPage() {
 
   const totalTimes = people.reduce((s, p) => s + p.times, 0);
 
-  const submit = useMutation({
-    mutationFn: () => api.addVolunteer({ psCode: ps.psCode, date, activity: activity.trim(), detail: detail.trim() }),
-    onSuccess: (res) => {
-      toast(`บันทึกงานจิตอาสาเรียบร้อย: ${res.name} (รอบ ${res.round})`, 'success');
-      ps.reset();
-      setActivity('');
-      setDetail('');
-      qc.invalidateQueries({ queryKey: ['volunteers'] });
-    },
-    onError: (err) => {
-      const dup = err instanceof ApiError && err.code === 'duplicate';
-      toast(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด', dup ? 'warning' : 'error');
-    },
-  });
-
   const remove = useMutation({
     mutationFn: (id: string) => api.deleteVolunteer(token!, id),
     onSuccess: () => {
@@ -93,11 +71,6 @@ export default function VolunteerPage() {
     },
   });
 
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (ps.user && !submit.isPending) submit.mutate();
-  }
-
   function exportCsv() {
     downloadCsv(`volunteer-${round ? round.replace('/', '-') : 'all'}.csv`, [
       ['ลำดับ', 'ชื่อ-นามสกุล', 'ตำแหน่ง', 'หน่วยงาน', 'จำนวนครั้ง', 'ล่าสุด'],
@@ -108,51 +81,9 @@ export default function VolunteerPage() {
   return (
     <>
       <section className="hero">
-        <h1>บันทึกงานจิตอาสา</h1>
-        <p>นับจำนวนครั้งตามรอบประเมิน</p>
+        <h1>สรุปงานจิตอาสา</h1>
+        <p>จำนวนครั้งต่อคนตามรอบประเมิน</p>
       </section>
-
-      <Card title="บันทึกงานจิตอาสา">
-        <form onSubmit={onSubmit} className="form">
-          <PsCodeField state={ps} />
-
-          <div className="grid-2">
-            <label className="field">
-              <span>วันที่ทำกิจกรรม</span>
-              <input type="date" value={date} max={todayString()} onChange={(e) => setDate(e.target.value)} required />
-            </label>
-            <div className="field">
-              <span>รอบประเมิน</span>
-              <div className="readonly-value">{date ? `รอบประเมิน ${evalRound(date)}` : '-'}</div>
-            </div>
-          </div>
-
-          <label className="field">
-            <span>กิจกรรมจิตอาสา</span>
-            <input
-              value={activity}
-              onChange={(e) => setActivity(e.target.value)}
-              list="volunteer-activities"
-              maxLength={200}
-              placeholder="เช่น ตรวจสุขภาพชุมชน, ทำความสะอาดวัด"
-              required
-            />
-            <datalist id="volunteer-activities">
-              {activityNames.map((a) => <option key={a} value={a} />)}
-            </datalist>
-          </label>
-
-          <label className="field">
-            <span>รายละเอียด (ไม่บังคับ)</span>
-            <textarea rows={3} value={detail} onChange={(e) => setDetail(e.target.value)} maxLength={1000} />
-          </label>
-
-          <button className="btn btn-primary" type="submit" disabled={!ps.user || submit.isPending}>
-            {submit.isPending ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
-          </button>
-          <p className="hint">ระบบป้องกันการบันทึกซ้ำ (บุคคล + วันที่ + กิจกรรมเดียวกัน)</p>
-        </form>
-      </Card>
 
       <Card
         title="สรุปจำนวนครั้งตามรอบประเมิน"

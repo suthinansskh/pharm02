@@ -82,3 +82,21 @@ export interface AdminUserInput {
   unit: string;
   status: 'active' | 'inactive';
 }
+
+export interface VolunteerActivity {
+  id: string;
+  name: string;
+  date: string; // yyyy-MM-dd
+  round: string;
+  status: string;
+  description: string;
+}
+
+export interface VolunteerActivityInput {
+  id?: string;
+  name: string;
+  date: string;
+  round: string;
+  status: string;
+  description: string;
+}

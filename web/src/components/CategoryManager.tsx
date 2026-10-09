@@ -3,43 +3,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { useAdmin } from '../admin';
 import { useCategories } from '../queries';
-import { useToast } from '../components/Toast';
-import { Card } from '../components/State';
-import UserManager from '../components/UserManager';
+import { useToast } from './Toast';
 
-export function LoginForm() {
-  const { setToken } = useAdmin();
-  const toast = useToast();
-  const [password, setPassword] = useState('');
-
-  const login = useMutation({
-    mutationFn: () => api.login(password),
-    onSuccess: (res) => {
-      setToken(res.token);
-      setPassword('');
-    },
-    onError: (err) => toast(err instanceof Error ? err.message : 'เข้าสู่ระบบไม่สำเร็จ', 'error'),
-  });
-
-  function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (password && !login.isPending) login.mutate();
-  }
-
-  return (
-    <form onSubmit={onSubmit} className="form form-narrow">
-      <label className="field">
-        <span>รหัสผ่านผู้ดูแลระบบ</span>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
-      </label>
-      <button className="btn btn-primary" type="submit" disabled={login.isPending}>
-        {login.isPending ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'}
-      </button>
-    </form>
-  );
-}
-
-function CategoryManager() {
+export default function CategoryManager() {
   const { token, handleError } = useAdmin();
   const toast = useToast();
   const qc = useQueryClient();
@@ -121,62 +87,5 @@ function CategoryManager() {
         )}
       </div>
     </div>
-  );
-}
-
-export default function AdminPage() {
-  const { token, setToken, handleError } = useAdmin();
-  const toast = useToast();
-  const qc = useQueryClient();
-
-  const dedupe = useMutation({
-    mutationFn: () => api.removeDuplicates(token!),
-    onSuccess: (res) => {
-      toast(res.removed ? `ลบข้อมูลซ้ำ ${res.removed} รายการ` : 'ไม่พบข้อมูลซ้ำ', 'success');
-      qc.invalidateQueries({ queryKey: ['records'] });
-    },
-    onError: (err) => {
-      handleError(err);
-      toast(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด', 'error');
-    },
-  });
-
-  if (!token) {
-    return (
-      <Card title="เข้าสู่ระบบผู้ดูแล">
-        <LoginForm />
-      </Card>
-    );
-  }
-
-  return (
-    <Card
-      title="เครื่องมือผู้ดูแล"
-      actions={
-        <button className="btn" onClick={() => { setToken(null); qc.removeQueries({ queryKey: ['adminUsers'] }); }}>
-          ออกจากระบบ
-        </button>
-      }
-    >
-      <UserManager />
-      <hr className="divider" />
-      <CategoryManager />
-      <hr className="divider" />
-      <div className="admin-tool">
-        <div>
-          <h3>ลบข้อมูลซ้ำ</h3>
-          <p className="hint">ลบแถวใน record ที่มี ชื่อ + วันที่ + กิจกรรม ซ้ำกัน โดยเก็บแถวแรกไว้ (ย้อนกลับไม่ได้)</p>
-        </div>
-        <button
-          className="btn btn-danger"
-          disabled={dedupe.isPending}
-          onClick={() => {
-            if (window.confirm('ยืนยันลบข้อมูลที่ซ้ำกัน? การลบย้อนกลับไม่ได้')) dedupe.mutate();
-          }}
-        >
-          {dedupe.isPending ? 'กำลังลบ...' : 'ลบข้อมูลซ้ำ'}
-        </button>
-      </div>
-    </Card>
   );
 }

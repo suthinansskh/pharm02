@@ -15,6 +15,9 @@ export const useRecords = (limit?: number) =>
 export const useVolunteers = () =>
   useQuery({ queryKey: ['volunteers'], queryFn: api.volunteers, staleTime: MINUTE });
 
+export const useVolunteerActivities = () =>
+  useQuery({ queryKey: ['volunteerActivities'], queryFn: api.volunteerActivities, staleTime: MINUTE });
+
 export const useUser = (psCode: string) =>
   useQuery({
     queryKey: ['user', psCode.toLowerCase()],

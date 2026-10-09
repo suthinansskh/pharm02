@@ -6,22 +6,23 @@
  *   SHEET_ID        optional, overrides the default below
  *
  * Contract: every response is JSON { ok: true, data } or { ok: false, error, message }.
- *   GET  ?action=ping|events|records|categories|volunteers|lookup&psCode=...
+ *   GET  ?action=ping|events|records|categories|volunteers|volunteerActivities|lookup&psCode=...
  *   POST (Content-Type: text/plain, JSON body) { action, ... }
- *        public: addRecord, addVolunteer, login      admin (needs token): saveEvent, deleteEvent, removeDuplicates, saveCategories, deleteVolunteer, listUsers, saveUser, deleteUser
+ *        public: addRecord, addVolunteer, login      admin (needs token): saveEvent, deleteEvent, removeDuplicates, saveCategories, deleteVolunteer, saveVolunteerActivity, deleteVolunteerActivity, listUsers, saveUser, deleteUser
  *
  * Sensitive user columns (national ID, password) are never returned.
  */
 
 var DEFAULT_SHEET_ID = '15Vd-K-0f7yEXTioI8-M5tQB2992UbktMGkCEbk3M-sU';
-var SHEETS = { record: 'record', event: 'event', user: 'user', category: 'category', volunteer: 'volunteer' };
+var SHEETS = { record: 'record', event: 'event', user: 'user', category: 'category', volunteer: 'volunteer', volunteerActivity: 'volunteer_activity' };
 var CACHE_TTL = 120;          // seconds, server-side read cache
 var SESSION_TTL = 6 * 3600;   // seconds (CacheService max)
 var MAX_LOGIN_FAILS = 5;
 var LOGIN_LOCK_SECONDS = 300;
 
 var RECORD_HEADERS = ['Timestamp', 'Name', 'Position', 'Department', 'Date', 'Event', 'Points', 'PSCode', 'EventID'];
-var VOLUNTEER_HEADERS = ['ID', 'Timestamp', 'PSCode', 'Name', 'Position', 'Department', 'Date', 'Activity', 'Detail', 'Round'];
+var VOLUNTEER_HEADERS = ['ID', 'Timestamp', 'PSCode', 'Name', 'Position', 'Department', 'Date', 'Activity', 'Detail', 'Round', 'ActivityID'];
+var VACTIVITY_HEADERS = ['ID', 'Name', 'Date', 'Round', 'Status', 'Description', 'Updated At'];
 var EVENT_HEADERS = ['ID', 'Name', 'Catagory', 'Point', 'Date', 'Organizer', 'Status', 'Description', 'Updated At'];
 
 var USER_COL = {
@@ -52,9 +53,10 @@ function doPost(e) {
 
 function handle_(action, params, isPost) {
   try {
-    var readers = { ping: ping_, events: getEvents_, records: getRecords_, lookup: lookupUser_, categories: getCategories_, volunteers: getVolunteers_ };
+    var readers = { ping: ping_, events: getEvents_, records: getRecords_, lookup: lookupUser_, categories: getCategories_, volunteers: getVolunteers_, volunteerActivities: getVolunteerActivities_ };
     var writers = { addRecord: addRecord_, addVolunteer: addVolunteer_, login: login_ };
     var admins = { saveEvent: saveEvent_, deleteEvent: deleteEvent_, removeDuplicates: removeDuplicates_, saveCategories: saveCategories_, deleteVolunteer: deleteVolunteer_,
+      saveVolunteerActivity: saveVolunteerActivity_, deleteVolunteerActivity: deleteVolunteerActivity_,
       listUsers: listUsers_, saveUser: saveUser_, deleteUser: deleteUser_ };
 
     if (!isPost && readers[action]) return out_(ok_(readers[action](params)));
@@ -608,36 +610,122 @@ function getVolunteers_(params) {
   return limit > 0 ? { total: all.length, items: all.slice(0, limit) } : { total: all.length, items: all };
 }
 
+/** Volunteer activities the admin defines in advance (e.g. a royal holiday or the hospital sports day). */
+function getVolunteerActivities_() {
+  var cached = cacheGet_('vactivities');
+  if (cached) return cached;
+  var t = table_(SHEETS.volunteerActivity, VACTIVITY_HEADERS);
+  var list = t.rows
+    .filter(function (r) { return str_(pick_(r, t.col, ['ID'])) !== '' && str_(pick_(r, t.col, ['Name'])) !== ''; })
+    .map(function (r) {
+      var date = fmtDate_(pick_(r, t.col, ['Date']));
+      var round = str_(pick_(r, t.col, ['Round']));
+      return {
+        id: str_(pick_(r, t.col, ['ID'])),
+        name: str_(pick_(r, t.col, ['Name'])),
+        date: date,
+        round: /^[12]\/\d{4}$/.test(round) ? round : evalRound_(date),
+        status: normStatus_(pick_(r, t.col, ['Status'])),
+        description: str_(pick_(r, t.col, ['Description']))
+      };
+    })
+    .filter(function (a) { return a.status !== 'deleted'; });
+  cachePut_('vactivities', list);
+  return list;
+}
+
+function saveVolunteerActivity_(b) {
+  var name = str_(b.name);
+  var date = str_(b.date);
+  var status = str_(b.status).toLowerCase() || 'active';
+  var description = str_(b.description);
+  if (!name || name.length > 200) throw apiError_('invalid_input', 'กรุณาระบุชื่อกิจกรรม (ไม่เกิน 200 ตัวอักษร)');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw apiError_('invalid_input', 'วันที่ไม่ถูกต้อง');
+  if (['active', 'inactive'].indexOf(status) < 0) throw apiError_('invalid_input', 'สถานะไม่ถูกต้อง');
+  if (description.length > 1000) throw apiError_('invalid_input', 'รายละเอียดยาวเกินไป');
+  var round = str_(b.round) || evalRound_(date);
+  if (!/^[12]\/\d{4}$/.test(round)) throw apiError_('invalid_input', 'รอบประเมินไม่ถูกต้อง');
+
+  return withLock_(function () {
+    var t = table_(SHEETS.volunteerActivity, VACTIVITY_HEADERS);
+    ensureColumns_(t, VACTIVITY_HEADERS);
+    var id = str_(b.id);
+    var rowIndex = -1;
+    if (id) {
+      for (var i = 0; i < t.rows.length; i++) {
+        if (str_(t.rows[i][t.col['ID']]) === id) { rowIndex = i + 2; break; }
+      }
+      if (rowIndex < 0) throw apiError_('not_found', 'ไม่พบกิจกรรม');
+    } else {
+      id = Utilities.getUuid().slice(0, 8) + Date.now().toString(36);
+    }
+    var row = new Array(t.headers.length).fill('');
+    if (rowIndex > 0) t.rows[rowIndex - 2].forEach(function (v, k) { row[k] = v; });
+    row[t.col['ID']] = id;
+    row[t.col['Name']] = name;
+    row[t.col['Date']] = date;
+    row[t.col['Round']] = round;
+    row[t.col['Status']] = status;
+    row[t.col['Description']] = description;
+    row[t.col['Updated At']] = new Date();
+
+    var target = rowIndex > 0 ? rowIndex : t.sheet.getLastRow() + 1;
+    t.sheet.getRange(target, t.col['Round'] + 1).setNumberFormat('@'); // "1/2570" must stay text
+    t.sheet.getRange(target, 1, 1, row.length).setValues([row]);
+    cacheDel_('vactivities');
+    return { id: id };
+  });
+}
+
+/** Soft delete: attendance rows keep the activity name. */
+function deleteVolunteerActivity_(b) {
+  var id = str_(b.id);
+  if (!id) throw apiError_('invalid_input', 'ไม่ระบุกิจกรรม');
+  return withLock_(function () {
+    var t = table_(SHEETS.volunteerActivity, VACTIVITY_HEADERS);
+    for (var i = 0; i < t.rows.length; i++) {
+      if (str_(t.rows[i][t.col['ID']]) === id) {
+        t.sheet.getRange(i + 2, t.col['Status'] + 1).setValue('deleted');
+        t.sheet.getRange(i + 2, t.col['Updated At'] + 1).setValue(new Date());
+        cacheDel_('vactivities');
+        return { id: id };
+      }
+    }
+    throw apiError_('not_found', 'ไม่พบกิจกรรม');
+  });
+}
+
+/** Identity and activity details come from the sheets, never from the client. */
 function addVolunteer_(b) {
   var psCode = str_(b.psCode);
-  var date = str_(b.date);
-  var activity = str_(b.activity);
+  var activityId = str_(b.activityId);
   var detail = str_(b.detail);
   if (!psCode) throw apiError_('invalid_input', 'กรุณากรอก PS Code');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw apiError_('invalid_input', 'วันที่ไม่ถูกต้อง');
-  if (!activity || activity.length > 200) throw apiError_('invalid_input', 'กรุณาระบุกิจกรรมจิตอาสา (ไม่เกิน 200 ตัวอักษร)');
+  if (!activityId) throw apiError_('invalid_input', 'กรุณาเลือกกิจกรรมจิตอาสา');
   if (detail.length > 1000) throw apiError_('invalid_input', 'รายละเอียดยาวเกินไป');
-  var today = Utilities.formatDate(new Date(), ss_().getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-  if (date > today) throw apiError_('invalid_input', 'ไม่สามารถบันทึกวันที่ในอนาคตได้');
 
   var user = findUser_(psCode);
+  var act = getVolunteerActivities_().filter(function (a) { return a.id === activityId; })[0];
+  if (!act) throw apiError_('not_found', 'ไม่พบกิจกรรมจิตอาสา');
+  if (act.status !== 'active') throw apiError_('inactive_event', 'กิจกรรมนี้ปิดรับการบันทึกแล้ว');
+  var today = Utilities.formatDate(new Date(), ss_().getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+  if (act.date > today) throw apiError_('invalid_input', 'ยังไม่ถึงวันจัดกิจกรรม (' + act.date + ')');
 
   return withLock_(function () {
     var t = table_(SHEETS.volunteer, VOLUNTEER_HEADERS);
     ensureColumns_(t, VOLUNTEER_HEADERS);
 
-    // Same person, same day, same activity is a duplicate.
+    // One entry per person per activity.
     for (var i = 0; i < t.rows.length; i++) {
       var r = t.rows[i];
       if (normKey_(r[t.col['PSCode']]) === normKey_(user.psCode) &&
-          fmtDate_(r[t.col['Date']]) === date &&
-          normKey_(r[t.col['Activity']]) === normKey_(activity)) {
-        throw apiError_('duplicate', 'ข้อมูลซ้ำ: ' + user.name + ' ได้บันทึกกิจกรรมนี้ในวันที่ ' + date + ' แล้ว');
+          (str_(r[t.col['ActivityID']]) === act.id ||
+           (fmtDate_(r[t.col['Date']]) === act.date && normKey_(r[t.col['Activity']]) === normKey_(act.name)))) {
+        throw apiError_('duplicate', 'ข้อมูลซ้ำ: ' + user.name + ' ได้บันทึก ' + act.name + ' แล้ว');
       }
     }
 
     var id = Utilities.getUuid().slice(0, 8) + Date.now().toString(36);
-    var round = evalRound_(date);
     var row = new Array(t.headers.length).fill('');
     row[t.col['ID']] = id;
     row[t.col['Timestamp']] = new Date();
@@ -645,17 +733,18 @@ function addVolunteer_(b) {
     row[t.col['Name']] = user.name;
     row[t.col['Position']] = user.position;
     row[t.col['Department']] = user.department;
-    row[t.col['Date']] = date;
-    row[t.col['Activity']] = activity;
+    row[t.col['Date']] = act.date;
+    row[t.col['Activity']] = act.name;
     row[t.col['Detail']] = detail;
-    row[t.col['Round']] = round;
+    row[t.col['Round']] = act.round;
+    row[t.col['ActivityID']] = act.id;
 
     // Plain text for Round, or Sheets reads "1/2570" as a date.
     var target = t.sheet.getLastRow() + 1;
     t.sheet.getRange(target, t.col['Round'] + 1).setNumberFormat('@');
     t.sheet.getRange(target, 1, 1, row.length).setValues([row]);
     cacheDel_('volunteers');
-    return { id: id, name: user.name, round: round };
+    return { id: id, name: user.name, activity: act.name, round: act.round };
   });
 }
 
